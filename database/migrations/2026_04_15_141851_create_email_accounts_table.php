@@ -11,6 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
+        Schema::dropIfExists('email_accounts');
         Schema::create('email_accounts', function (Blueprint $table) {
             $table->id();
             $table->foreignId('team_id')->constrained('teams')->onDelete('cascade');
