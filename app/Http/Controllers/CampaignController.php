@@ -106,13 +106,36 @@ class CampaignController extends Controller
     public function launch(Campaign $campaign): JsonResponse
     {
         try {
-            $this->sequenceService->launch($campaign);
+            // Validate campaign is authorized
+            if ($campaign->team_id !== auth()->user()->teams()->first()?->id) {
+                return response()->json(['error' => 'Unauthorized'], 403);
+            }
+
+            // Launch the campaign and get detailed response
+            $result = $this->sequenceService->launch($campaign);
+
             return response()->json([
-                'message' => 'Campaign launched successfully',
+                'message' => $result['message'],
                 'campaign' => $campaign->fresh(),
+                'details' => [
+                    'leads_count' => $result['leads_count'],
+                    'steps_count' => $result['steps_count'],
+                    'jobs_dispatched' => $result['jobs_dispatched'],
+                ],
             ]);
+
         } catch (\Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
+            // Log the error for debugging
+            \Illuminate\Support\Facades\Log::error('Campaign launch error: ' . $e->getMessage(), [
+                'campaign_id' => $campaign->id,
+                'user_id' => auth()->user()->id,
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'error' => $e->getMessage(),
+                'message' => 'Failed to launch campaign. ' . $e->getMessage(),
+            ], 400);
         }
     }
 }
