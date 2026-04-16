@@ -35,7 +35,7 @@ class RegisteredUserController extends Controller
         ]);
 
         // Automatically create a team for the new user
-        Team::create([
+        $team = Team::create([
             'name' => $user->name . "'s Team",
             'owner_id' => $user->id,
             'plan' => 'free',
@@ -51,6 +51,7 @@ class RegisteredUserController extends Controller
         return response()->json([
             'token' => $token,
             'user' => $user,
+            'team' => $team,
         ], 201);
     }
 }

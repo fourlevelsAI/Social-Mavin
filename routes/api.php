@@ -53,6 +53,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
         return $request->user();
     });
 
+    // Get current user's team
+    Route::get('/teams/current', function (Request $request) {
+        $user = $request->user();
+        $team = $user->teams()->first() ?? $user->teamMemberships()->first();
+        return response()->json(['team' => $team]);
+    });
+
     // Team management
     Route::post('/teams', [TeamController::class, 'create']);
     Route::post('/teams/{team}/invite', [TeamController::class, 'invite']);
