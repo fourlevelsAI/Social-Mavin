@@ -19,7 +19,14 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => [env('FRONTEND_URL', 'http://localhost:3000')],
+    'allowed_origins' => [
+        'https://social-mavin-main-urlmyg.free.laravel.cloud',
+        'https://www.socialmavin.com',
+        'https://socialmavin.com',
+        'http://localhost:5173',
+        'http://localhost:3000',
+        env('FRONTEND_URL', 'http://localhost:3000'),
+    ],
 
     'allowed_origins_patterns' => [],
 
