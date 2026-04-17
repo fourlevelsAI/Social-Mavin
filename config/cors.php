@@ -25,6 +25,7 @@ return [
         'https://socialmavin.com',
         'http://localhost:5173',
         'http://localhost:3000',
+        'http://localhost:8080',
         env('FRONTEND_URL', 'http://localhost:3000'),
     ],
 
