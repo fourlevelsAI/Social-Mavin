@@ -6,6 +6,7 @@ use App\Models\Campaign;
 use App\Models\SequenceStep;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Log;
 
 class SequenceStepController extends Controller
 {
@@ -15,34 +16,31 @@ class SequenceStepController extends Controller
     public function store(Request $request, Campaign $campaign): JsonResponse
     {
         try {
-            // Validate authorization
-            if ($campaign->team_id !== auth()->user()->teams()->first()?->id) {
-                return response()->json(['error' => 'Unauthorized'], 403);
+            $user = auth()->user();
+            
+            // Log the request for debugging
+            Log::info('Sequence steps request', [
+                'user_id' => $user?->id,
+                'campaign_id' => $campaign->id,
+                'request_keys' => array_keys($request->all()),
+                'request_body' => $request->all(),
+            ]);
+
+            // Validate authorization - check if user owns the team that owns the campaign
+            $userTeamIds = $user->teams()->pluck('id')->toArray();
+            if (!in_array($campaign->team_id, $userTeamIds)) {
+                Log::warning('Unauthorized sequence steps access', [
+                    'user_id' => $user->id,
+                    'campaign_id' => $campaign->id,
+                    'user_teams' => $userTeamIds,
+                ]);
+                return response()->json(['error' => 'Unauthorized - you do not own this campaign'], 403);
             }
 
             // Accept both 'steps' and 'sequence_steps' as request keys
             $stepsData = $request->input('steps') ?? $request->input('sequence_steps', []);
 
-            // Validate the request
-            $validated = $request->validate([
-                'steps' => 'nullable|array|min:1',
-                'sequence_steps' => 'nullable|array|min:1',
-                'steps.*.step_order' => 'nullable|integer|min:1',
-                'steps.*.channel' => 'nullable|string|in:email,linkedin,instagram',
-                'steps.*.subject' => 'nullable|string|max:255',
-                'steps.*.body' => 'nullable|string',
-                'steps.*.delay_days' => 'nullable|integer|min:0',
-                'sequence_steps.*.step_order' => 'nullable|integer|min:1',
-                'sequence_steps.*.channel' => 'nullable|string|in:email,linkedin,instagram',
-                'sequence_steps.*.subject' => 'nullable|string|max:255',
-                'sequence_steps.*.body' => 'nullable|string',
-                'sequence_steps.*.delay_days' => 'nullable|integer|min:0',
-            ]);
-
-            // Use whichever key was provided
-            $stepsToSave = $stepsData;
-            
-            if (empty($stepsToSave)) {
+            if (empty($stepsData)) {
                 return response()->json([
                     'error' => 'No steps provided',
                     'message' => 'Provide an array of steps with key "steps" or "sequence_steps"',
@@ -54,17 +52,31 @@ class SequenceStepController extends Controller
 
             // Create new sequence steps
             $steps = [];
-            foreach ($stepsToSave as $step) {
-                $createdStep = SequenceStep::create([
-                    'campaign_id' => $campaign->id,
-                    'step_number' => $step['step_order'] ?? $step['step_number'] ?? 1,
-                    'channel' => $step['channel'] ?? 'email',
-                    'subject' => $step['subject'] ?? '',
-                    'body' => $step['body'] ?? '',
-                    'delay_days' => $step['delay_days'] ?? 0,
-                ]);
-                $steps[] = $createdStep;
+            foreach ($stepsData as $index => $step) {
+                try {
+                    $createdStep = SequenceStep::create([
+                        'campaign_id' => $campaign->id,
+                        'step_number' => $step['step_order'] ?? $step['step_number'] ?? ($index + 1),
+                        'channel' => $step['channel'] ?? 'email',
+                        'subject' => $step['subject'] ?? 'No Subject',
+                        'body' => $step['body'] ?? '',
+                        'delay_days' => $step['delay_days'] ?? 0,
+                    ]);
+                    $steps[] = $createdStep;
+                } catch (\Exception $e) {
+                    Log::error('Error creating sequence step', [
+                        'campaign_id' => $campaign->id,
+                        'step_index' => $index,
+                        'error' => $e->getMessage(),
+                    ]);
+                    throw $e;
+                }
             }
+
+            Log::info('Sequence steps saved successfully', [
+                'campaign_id' => $campaign->id,
+                'steps_count' => count($steps),
+            ]);
 
             return response()->json([
                 'message' => 'Sequence steps saved successfully',
@@ -73,19 +85,16 @@ class SequenceStepController extends Controller
                 'count' => count($steps),
             ], 201);
 
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'error' => 'Validation failed',
-                'messages' => $e->errors(),
-            ], 422);
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Sequence step save error: ' . $e->getMessage(), [
-                'campaign_id' => $campaign->id,
+            Log::error('Sequence step save error', [
+                'campaign_id' => $campaign->id ?? 'unknown',
+                'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
             return response()->json([
-                'error' => $e->getMessage(),
-                'message' => 'Failed to save sequence steps',
+                'error' => 'Failed to save sequence steps',
+                'message' => $e->getMessage(),
+                'debug' => config('app.debug') ? $e->getTrace() : null,
             ], 400);
         }
     }
