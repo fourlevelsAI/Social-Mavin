@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\CampaignController;
+use App\Http\Controllers\SequenceStepController;
 use App\Http\Controllers\LeadController;
 use App\Http\Controllers\EmailAccountController;
 use App\Http\Controllers\EmailWarmupController;
@@ -69,6 +70,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // Campaign management
     Route::apiResource('campaigns', CampaignController::class);
     Route::post('campaigns/{campaign}/launch', [CampaignController::class, 'launch']);
+    Route::post('campaigns/{campaign}/sequence-steps', [SequenceStepController::class, 'store']);
     Route::get('campaigns/{campaign}/analytics', [CampaignAnalyticsController::class, 'show']);
 
     // Lead management
