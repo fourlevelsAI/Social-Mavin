@@ -20,29 +20,48 @@ class SequenceStepController extends Controller
                 return response()->json(['error' => 'Unauthorized'], 403);
             }
 
+            // Accept both 'steps' and 'sequence_steps' as request keys
+            $stepsData = $request->input('steps') ?? $request->input('sequence_steps', []);
+
             // Validate the request
             $validated = $request->validate([
-                'steps' => 'required|array|min:1',
-                'steps.*.step_order' => 'required|integer|min:1',
-                'steps.*.channel' => 'required|string|in:email,linkedin,instagram',
-                'steps.*.subject' => 'required|string|max:255',
-                'steps.*.body' => 'required|string',
-                'steps.*.delay_days' => 'required|integer|min:0',
+                'steps' => 'nullable|array|min:1',
+                'sequence_steps' => 'nullable|array|min:1',
+                'steps.*.step_order' => 'nullable|integer|min:1',
+                'steps.*.channel' => 'nullable|string|in:email,linkedin,instagram',
+                'steps.*.subject' => 'nullable|string|max:255',
+                'steps.*.body' => 'nullable|string',
+                'steps.*.delay_days' => 'nullable|integer|min:0',
+                'sequence_steps.*.step_order' => 'nullable|integer|min:1',
+                'sequence_steps.*.channel' => 'nullable|string|in:email,linkedin,instagram',
+                'sequence_steps.*.subject' => 'nullable|string|max:255',
+                'sequence_steps.*.body' => 'nullable|string',
+                'sequence_steps.*.delay_days' => 'nullable|integer|min:0',
             ]);
+
+            // Use whichever key was provided
+            $stepsToSave = $stepsData;
+            
+            if (empty($stepsToSave)) {
+                return response()->json([
+                    'error' => 'No steps provided',
+                    'message' => 'Provide an array of steps with key "steps" or "sequence_steps"',
+                ], 422);
+            }
 
             // Delete existing sequence steps for this campaign
             $campaign->sequenceSteps()->delete();
 
             // Create new sequence steps
             $steps = [];
-            foreach ($validated['steps'] as $step) {
+            foreach ($stepsToSave as $step) {
                 $createdStep = SequenceStep::create([
                     'campaign_id' => $campaign->id,
-                    'step_number' => $step['step_order'],
-                    'channel' => $step['channel'],
-                    'subject' => $step['subject'],
-                    'body' => $step['body'],
-                    'delay_days' => $step['delay_days'],
+                    'step_number' => $step['step_order'] ?? $step['step_number'] ?? 1,
+                    'channel' => $step['channel'] ?? 'email',
+                    'subject' => $step['subject'] ?? '',
+                    'body' => $step['body'] ?? '',
+                    'delay_days' => $step['delay_days'] ?? 0,
                 ]);
                 $steps[] = $createdStep;
             }
@@ -60,7 +79,10 @@ class SequenceStepController extends Controller
                 'messages' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Sequence step save error: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error('Sequence step save error: ' . $e->getMessage(), [
+                'campaign_id' => $campaign->id,
+                'trace' => $e->getTraceAsString(),
+            ]);
             return response()->json([
                 'error' => $e->getMessage(),
                 'message' => 'Failed to save sequence steps',
