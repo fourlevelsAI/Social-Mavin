@@ -48,7 +48,7 @@ class SendCampaignEmail implements ShouldQueue
 
             // Send email via configured SMTP
             Mail::to($this->lead->email)
-                ->queue(new \App\Mail\CampaignEmail(
+                ->send(new \App\Mail\CampaignEmail(
                     $this->lead,
                     $subject,
                     $body,
