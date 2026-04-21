@@ -50,9 +50,13 @@ class CampaignSequenceService
                     // Calculate delay in seconds (delay_days * 24 * 60 * 60)
                     $delayInSeconds = $sequenceStep->delay_days * 24 * 60 * 60;
 
-                    // Dispatch the job with delay
-                    SendCampaignEmail::dispatch($lead, $sequenceStep)
-                        ->delay(now()->addSeconds($delayInSeconds));
+                    // Send immediately for step 0, otherwise queue with delay
+                    if ($delayInSeconds === 0) {
+                        (new \App\Jobs\SendCampaignEmail($lead, $sequenceStep))->handle();
+                    } else {
+                        SendCampaignEmail::dispatch($lead, $sequenceStep)
+                            ->delay(now()->addSeconds($delayInSeconds));
+                    }
                     
                     $jobsDispatched++;
                 }
