@@ -70,6 +70,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // Campaign management
     Route::apiResource('campaigns', CampaignController::class);
     Route::post('campaigns/{campaign}/launch', [CampaignController::class, 'launch']);
+    Route::post('campaigns/{campaign}/leads', [CampaignController::class, 'storeLeads']);
     Route::post('campaigns/{campaign}/sequence-steps', [SequenceStepController::class, 'store']);
     Route::get('campaigns/{campaign}/analytics', [CampaignAnalyticsController::class, 'show']);
 

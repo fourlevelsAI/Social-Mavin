@@ -90,6 +90,26 @@ class CampaignController extends Controller
         return response()->json($campaign);
     }
 
+    public function storeLeads(Request $request, Campaign $campaign): JsonResponse
+    {
+        $validated = $request->validate([
+            'leads' => 'required|array|min:1',
+            'leads.*' => 'email',
+        ]);
+
+        foreach ($validated['leads'] as $email) {
+            \App\Models\Lead::firstOrCreate([
+                'campaign_id' => $campaign->id,
+                'email' => $email,
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'Leads saved successfully',
+            'count' => count($validated['leads']),
+        ], 201);
+    }
+
     /**
      * Remove the specified resource from storage.
      */
