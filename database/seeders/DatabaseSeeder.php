@@ -2,28 +2,44 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use App\Models\User;
+use App\Models\Team;
+use App\Models\EmailAccount;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
-    /**
-     * Seed the application's database.
-     */
     public function run(): void
     {
-        // User::factory(10)->create();
+        $user = User::firstOrCreate(
+            ['email' => 'info@socialmavin.com'],
+            [
+                'name' => 'Mohamed Ibrahim',
+                'password' => bcrypt('changeme123'),
+                'email_verified_at' => now(),
+            ]
+        );
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        $team = Team::firstOrCreate(
+            ['owner_id' => $user->id],
+            [
+                'name' => 'Social Mavin',
+                'personal_team' => true,
+                'plan' => 'free',
+            ]
+        );
 
-        $this->call([
-            EmailAccountSeeder::class,
-        ]);
+        $user->update(['current_team_id' => $team->id]);
+
+        EmailAccount::firstOrCreate(
+            ['team_id' => $team->id],
+            [
+                'email' => 'info@socialmavin.com',
+                'smtp_host' => 'smtp.resend.com',
+                'smtp_port' => 465,
+                'warmup_enabled' => false,
+                'warmup_score' => 0,
+            ]
+        );
     }
 }
